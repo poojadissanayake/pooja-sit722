@@ -11,5 +11,6 @@ data:
   AZURE_SAS_TOKEN_EXPIRY_HOURS: "24"
 
   PRODUCT_SERVICE_URL: "http://product-service:8000"
-  CUSTOMER_SERVICE_URL: "http://customer-service:8001"
-  ORDER_SERVICE_URL: "http://order-service:8002"
+  ORDER_SERVICE_URL: "http://order-service:8001"
+  CUSTOMER_SERVICE_URL: "http://customer-service:8002"
+  
