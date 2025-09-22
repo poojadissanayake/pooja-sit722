@@ -5,6 +5,11 @@ on:
     workflows: ["Backend CI - Test, Build and Push"]
     types:
       - completed
+  push:
+    branches: [testing]
+    paths:
+      - "frontend/**"
+      - ".github/workflows/frontend_ci.yml"
   workflow_dispatch:
 
 env:
@@ -14,7 +19,7 @@ env:
 
 jobs:
   build_and_push_frontend:
-    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'testing') }}
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
