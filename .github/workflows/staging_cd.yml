@@ -19,9 +19,9 @@ jobs:
       sa_name: ${{ steps.tf_out.outputs.sa_name }}
       sa_key: ${{ steps.tf_out.outputs.sa_key }}
       img_container: ${{ steps.tf_out.outputs.img_container }}
-      product_ip: ${{ steps.capture.outputs.product_ip }}
-      order_ip: ${{ steps.capture.outputs.order_ip }}
-      customer_ip: ${{ steps.capture.outputs.customer_ip }}
+      product_ip: ${{ steps.backend.outputs.PRODUCT_IP }}
+      order_ip: ${{ steps.backend.outputs.ORDER_IP }}
+      customer_ip: ${{ steps.backend.outputs.CUSTOMER_IP }}
 
     steps:
       - name: Checkout repo

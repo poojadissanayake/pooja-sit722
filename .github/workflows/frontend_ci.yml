@@ -1,20 +1,12 @@
 name: Frontend CI - Build & Push Image
 
 on:
-  workflow_dispatch:
   workflow_run:
-    workflows: ["Backend CI - Test, Build and Push Images to ACR"]
+    workflows: ["Backend CI - Test, Build and Push"]
     types:
       - completed
-
-  # Automatically on pushes to testing branch
-  push:
-    branches:
-      - testing
-    paths: # Only trigger if changes are in the frontend directory
-      - "frontend/**"
-      - ".github/workflows/frontend_ci.yml"
-
+  workflow_dispatch:
+    # Automatically on pushes to testing branch
 env:
   # ACR Login Server (myregistry.azurecr.io)
   ACR_LOGIN_SERVER: ${{ secrets.AZURE_CONTAINER_REGISTRY }}
