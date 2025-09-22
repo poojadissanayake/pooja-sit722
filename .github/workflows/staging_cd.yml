@@ -51,7 +51,7 @@ jobs:
     with:
       aks_cluster_name: ${{ vars.AKS_CLUSTER_NAME }}
       aks_resource_group: ${{ vars.AKS_RESOURCE_GROUP }}
-      secrets: inherit
+    secrets: inherit
 
   acceptance_tests:
     needs: deploy_backend
@@ -76,4 +76,4 @@ jobs:
       customer_api_ip: "http://${{ needs.deploy_backend.outputs.CUSTOMER_IP }}:8002"
       aks_cluster_name: ${{ vars.AKS_CLUSTER_NAME }}
       aks_resource_group: ${{ vars.AKS_RESOURCE_GROUP }}
-      secrets: inherit
+    secrets: inherit
