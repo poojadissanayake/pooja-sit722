@@ -27,7 +27,7 @@ jobs:
           az aks get-credentials -g "${{ vars.AKS_RESOURCE_GROUP }}" -n "${{ vars.AKS_CLUSTER_NAME }}" --overwrite-existing --file "$KUBECONFIG"
           kubectl --kubeconfig "$KUBECONFIG" cluster-info
 
-      - name: Attach ACR to AKS (idempotent)
+      - name: Attach ACR to AKS
         run: az aks update -g "${{ vars.AKS_RESOURCE_GROUP }}" -n "${{ vars.AKS_CLUSTER_NAME }}" --attach-acr "${{ secrets.AZURE_CONTAINER_REGISTRY }}"
 
       - name: Get Storage Account Key
@@ -45,24 +45,35 @@ jobs:
             --from-literal=AZURE_STORAGE_ACCOUNT_KEY='${{ steps.sakey.outputs.key }}' \
             --dry-run=client -o yaml | kubectl --kubeconfig "$KUBECONFIG" -n "$NS" apply -f -
 
-      - name: Deploy Backend (reusable)
-        id: backend
-        uses: poojadissanayake/pooja-sit722/.github/workflows/backend_cd.yml@testing
-        with:
-          aks_cluster_name: ${{ vars.AKS_CLUSTER_NAME }}
-          aks_resource_group: ${{ vars.AKS_RESOURCE_GROUP }}
+  deploy_backend:
+    needs: deploy_staging
+    uses: poojadissanayake/pooja-sit722/.github/workflows/backend_cd.yml@testing
+    with:
+      aks_cluster_name: ${{ vars.AKS_CLUSTER_NAME }}
+      aks_resource_group: ${{ vars.AKS_RESOURCE_GROUP }}
+      secrets: inherit
 
-      - name: Quick acceptance checks
+  acceptance_tests:
+    needs: deploy_backend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Health checks
         run: |
-          curl --fail "http://${{ steps.backend.outputs.PRODUCT_IP }}:8000/health"
-          curl --fail "http://${{ steps.backend.outputs.ORDER_IP }}:8001/health"
-          curl --fail "http://${{ steps.backend.outputs.CUSTOMER_IP }}:8002/health"
+          echo "Product IP:  ${{ needs.deploy_backend.outputs.PRODUCT_IP }}"
+          echo "Order IP:    ${{ needs.deploy_backend.outputs.ORDER_IP }}"
+          echo "Customer IP: ${{ needs.deploy_backend.outputs.CUSTOMER_IP }}"
+          curl --fail "http://${{ needs.deploy_backend.outputs.PRODUCT_IP }}:8000/health"
+          curl --fail "http://${{ needs.deploy_backend.outputs.ORDER_IP }}:8001/health"
+          curl --fail "http://${{ needs.deploy_backend.outputs.CUSTOMER_IP }}:8002/health"
 
-      - name: Deploy Frontend (reusable)
-        uses: poojadissanayake/pooja-sit722/.github/workflows/frontend_cd.yml@testing
-        with:
-          product_api_ip: "http://${{ steps.backend.outputs.PRODUCT_IP }}:8000"
-          order_api_ip: "http://${{ steps.backend.outputs.ORDER_IP }}:8001"
-          customer_api_ip: "http://${{ steps.backend.outputs.CUSTOMER_IP }}:8002"
-          aks_cluster_name: ${{ vars.AKS_CLUSTER_NAME }}
-          aks_resource_group: ${{ vars.AKS_RESOURCE_GROUP }}
+    # deploy frontend via reusable workflow, wiring the captured backend IPs
+  deploy_frontend:
+    needs: acceptance_tests
+    uses: poojadissanayake/pooja-sit722/.github/workflows/frontend_cd.yml@testing
+    with:
+      product_api_ip: "http://${{ needs.deploy_backend.outputs.PRODUCT_IP }}:8000"
+      order_api_ip: "http://${{ needs.deploy_backend.outputs.ORDER_IP }}:8001"
+      customer_api_ip: "http://${{ needs.deploy_backend.outputs.CUSTOMER_IP }}:8002"
+      aks_cluster_name: ${{ vars.AKS_CLUSTER_NAME }}
+      aks_resource_group: ${{ vars.AKS_RESOURCE_GROUP }}
+      secrets: inherit
