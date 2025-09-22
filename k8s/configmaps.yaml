@@ -4,13 +4,11 @@ metadata:
   name: ecommerce-config-w10t2
 data:
   # database names
-  PRODUCT_DB_NAME: products_db
-  ORDER_DB_NAME: orders_db
-  CUSTOMER_DB_NAME: customers_db
-  AZURE_STORAGE_CONTAINER_NAME: product-images
-  AZURE_SAS_TOKEN_EXPIRY_HOURS: "24"
+  PRODUCT_DB_NAME: products
+  ORDER_DB_NAME: orders
+  CUSTOMER_DB_NAME: customers
 
-  PRODUCT_SERVICE_URL: "http://product-service:8000"
-  ORDER_SERVICE_URL: "http://order-service:8001"
-  CUSTOMER_SERVICE_URL: "http://customer-service:8002"
+  PRODUCT_SERVICE_URL: "http://product-service-w10t2:8000"
+  ORDER_SERVICE_URL: "http://order-service-w10t2:8001"
+  CUSTOMER_SERVICE_URL: "http://customer-service-w10t2:8002"
   
