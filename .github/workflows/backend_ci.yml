@@ -8,7 +8,7 @@ on:
       - testing
     paths:
       - 'backend/**'
-      - '.github/workflows/backend_ci.yml'
+      - '.github/workflows'
 
 env:
   ACR_LOGIN_SERVER: ${{ secrets.AZURE_CONTAINER_REGISTRY }}
