@@ -1,12 +1,10 @@
 name: CD - Staging (Create, Deploy, Test, Destroy All)
 
 on:
-  push:
-    branches: [ testing ]
-    paths:
-      - '.terraform/**'
-      - 'k8s/**'
-      - '.github/workflows/staging_cd.yml'
+  workflow_run:
+    workflows: ["Frontend CI - Build & Push Image"]
+    types:
+      - completed
   workflow_dispatch:
 
 env:
@@ -15,18 +13,19 @@ env:
 jobs:
   # Job 1: Provision full staging infra + deploy backends and basic checks
   provision_and_deploy:
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'testing') }}
     runs-on: ubuntu-latest
     environment: Staging
     outputs:
-      rg:           ${{ steps.tf_out.outputs.rg }}
-      aks:          ${{ steps.tf_out.outputs.aks }}
-      acr:          ${{ steps.tf_out.outputs.acr }}
-      sa_name:      ${{ steps.tf_out.outputs.sa_name }}
-      sa_key:       ${{ steps.tf_out.outputs.sa_key }}
+      rg: ${{ steps.tf_out.outputs.rg }}
+      aks: ${{ steps.tf_out.outputs.aks }}
+      acr: ${{ steps.tf_out.outputs.acr }}
+      sa_name: ${{ steps.tf_out.outputs.sa_name }}
+      sa_key: ${{ steps.tf_out.outputs.sa_key }}
       img_container: ${{ steps.tf_out.outputs.img_container }}
-      product_ip:   ${{ steps.capture.outputs.product_ip }}
-      order_ip:     ${{ steps.capture.outputs.order_ip }}
-      customer_ip:  ${{ steps.capture.outputs.customer_ip }}
+      product_ip: ${{ steps.capture.outputs.product_ip }}
+      order_ip: ${{ steps.capture.outputs.order_ip }}
+      customer_ip: ${{ steps.capture.outputs.customer_ip }}
 
     steps:
       - name: Checkout repo
@@ -44,7 +43,7 @@ jobs:
         working-directory: .terraform
         run: terraform init
 
-      - name: Terraform Apply (create RG, ACR Basic+admin, AKS, Storage+container)
+      - name: Terraform Apply (create RG, ACR, AKS, Storage container)
         id: tf_apply
         working-directory: .terraform
         env:
@@ -64,17 +63,12 @@ jobs:
 
       - name: Get AKS credentials (staging)
         run: |
-          az aks get-credentials \
-            -g "${{ steps.tf_out.outputs.rg }}" \
-            -n "${{ steps.tf_out.outputs.aks }}" \
-            --overwrite-existing \
-            --file "$KUBECONFIG"
+          az aks get-credentials -g "${{ steps.tf_out.outputs.rg }}" -n "${{ steps.tf_out.outputs.aks }}" --overwrite-existing --file "$KUBECONFIG"
           kubectl --kubeconfig "$KUBECONFIG" cluster-info
 
-      - name: Attach ACR to AKS (idempotent)
+      - name: Attach ACR to AKS
         run: az aks update -g "${{ steps.tf_out.outputs.rg }}" -n "${{ steps.tf_out.outputs.aks }}" --attach-acr "${{ steps.tf_out.outputs.acr }}"
 
-      # Create/merge the secret with Storage creds so product-service can use Azure Blob
       - name: Create/Update ecommerce-secret-w10t2 with storage creds
         shell: bash
         run: |
@@ -85,45 +79,18 @@ jobs:
             --dry-run=client -o yaml | kubectl --kubeconfig "$KUBECONFIG" -n "$NS" apply -f -
 
       - name: Deploy backend infra (ConfigMaps/Secrets/DBs)
-        run: |
-          cd k8s/
-          kubectl --kubeconfig "$KUBECONFIG" apply -f configmaps.yaml
-          kubectl --kubeconfig "$KUBECONFIG" apply -f secrets.yaml
-          kubectl --kubeconfig "$KUBECONFIG" apply -f product-db.yaml
-          kubectl --kubeconfig "$KUBECONFIG" apply -f order-db.yaml
-          kubectl --kubeconfig "$KUBECONFIG" apply -f customer-db.yaml
-
-      - name: Deploy backend services (Product/Order/Customer)
-        run: |
-          cd k8s/
-          kubectl --kubeconfig "$KUBECONFIG" apply -f product-service.yaml
-          kubectl --kubeconfig "$KUBECONFIG" apply -f order-service.yaml
-          kubectl --kubeconfig "$KUBECONFIG" apply -f customer-service.yaml
-
-      - name: Wait for LoadBalancer IPs
-        id: capture
-        shell: bash
-        run: |
-          for i in $(seq 1 60); do
-            P=$(kubectl --kubeconfig "$KUBECONFIG" get svc product-service-w08e1   -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-            O=$(kubectl --kubeconfig "$KUBECONFIG" get svc order-service-w08e1     -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-            C=$(kubectl --kubeconfig "$KUBECONFIG" get svc customer-service-w08e1 -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-            if [[ -n "$P" && -n "$O" && -n "$C" ]]; then
-              echo "product_ip=$P"  >> $GITHUB_OUTPUT
-              echo "order_ip=$O"    >> $GITHUB_OUTPUT
-              echo "customer_ip=$C" >> $GITHUB_OUTPUT
-              echo "IPs: $P, $O, $C"
-              exit 0
-            fi
-            sleep 5
-          done
-          echo "Timed out waiting for LoadBalancer IPs"; exit 1
+        id: backend
+        uses: ./.github/workflows/backend_cd.yml
+        with:
+          aks_cluster_name: ${{ steps.tf_out.outputs.aks }}
+          aks_resource_group: ${{ steps.tf_out.outputs.rg }}
+          kubeconfig_path: ${{ env.KUBECONFIG }}
 
       - name: Quick acceptance checks
         run: |
-          curl --fail "http://${{ steps.capture.outputs.product_ip }}:8000/health"
-          curl --fail "http://${{ steps.capture.outputs.order_ip }}:8001/health"
-          curl --fail "http://${{ steps.capture.outputs.customer_ip }}:8002/health"
+          curl --fail "http://${{ steps.backend.outputs.PRODUCT_IP }}:8000/health"
+          curl --fail "http://${{ steps.backend.outputs.ORDER_IP }}:8001/health"
+          curl --fail "http://${{ steps.backend.outputs.CUSTOMER_IP }}:8002/health"
 
   # Job 2: (after manual approval window) Deploy frontend and DESTROY EVERYTHING (full terraform destroy)
   finalize_and_destroy:
@@ -143,9 +110,9 @@ jobs:
       - name: Deploy Frontend (reusable)
         uses: ./.github/workflows/frontend_cd.yml
         with:
-          product_api_ip:   "http://${{ needs.provision_and_deploy.outputs.product_ip }}:8000"
-          order_api_ip:     "http://${{ needs.provision_and_deploy.outputs.order_ip }}:8001"
-          customer_api_ip:  "http://${{ needs.provision_and_deploy.outputs.customer_ip }}:8002"
+          product_api_ip: "http://${{ needs.provision_and_deploy.outputs.product_ip }}:8000"
+          order_api_ip: "http://${{ needs.provision_and_deploy.outputs.order_ip }}:8001"
+          customer_api_ip: "http://${{ needs.provision_and_deploy.outputs.customer_ip }}:8002"
           aks_cluster_name: ${{ needs.provision_and_deploy.outputs.aks }}
           aks_resource_group: ${{ needs.provision_and_deploy.outputs.rg }}
 
