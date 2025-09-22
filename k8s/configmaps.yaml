@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ecommerce-config-w10t2
+data:
+  # database names
+  PRODUCT_DB_NAME: products
+  ORDER_DB_NAME: orders
+  CUSTOMER_DB_NAME: customers
+
+  PRODUCT_SERVICE_URL: "http://product-service-w10t2:8000"
+  ORDER_SERVICE_URL: "http://order-service-w10t2:8001"
+  CUSTOMER_SERVICE_URL: "http://customer-service-w10t2:8002"
+  

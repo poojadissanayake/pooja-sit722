@@ -1,0 +1,38 @@
+# test
+name: Frontend CI - Build & Push Image
+
+on:
+  workflow_run:
+    workflows: ["Backend CI - Test, Build and Push"]
+    types:
+      - completed
+  push:
+    branches: [testing]
+    paths:
+      - "frontend/**"
+      - ".github/workflows/frontend_ci.yml"
+  workflow_dispatch:
+
+env:
+  ACR_NAME: ${{ secrets.AZURE_CONTAINER_REGISTRY }}
+  ACR_LOGIN_SERVER: ${{ format('{0}.azurecr.io', secrets.AZURE_CONTAINER_REGISTRY) }}
+  IMAGE_TAG: ${{ github.sha }}-${{ github.run_id }}
+
+jobs:
+  build_and_push_frontend:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      - name: Login to ACR
+        run: az acr login --name $ACR_NAME
+      - name: Build and Push Frontend
+        run: |
+          docker build -t $ACR_LOGIN_SERVER/frontend:${{ env.IMAGE_TAG }} ./frontend/
+          docker push $ACR_LOGIN_SERVER/frontend:${{ env.IMAGE_TAG }}
+      - name: Logout
+        if: always()
+        run: az logout
