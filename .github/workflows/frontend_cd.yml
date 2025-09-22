@@ -23,42 +23,27 @@ jobs:
   deploy_frontend:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        
-      - name: Azure Login
-        uses: azure/login@v1
+      - uses: actions/checkout@v4
+      - uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Login to Azure Container Registry
-        run: az acr login --name ${{ secrets.AZURE_CONTAINER_REGISTRY }}
-
-      - name: Inject Backend IPs into Frontend main.js
+      - name: Inject backend URLs into frontend
         run: |
           sed -i "s|_PRODUCT_API_URL_|${{ inputs.product_api_ip }}|g" frontend/main.js
           sed -i "s|_ORDER_API_URL_|${{ inputs.order_api_ip }}|g" frontend/main.js
           sed -i "s|_CUSTOMER_API_URL_|${{ inputs.customer_api_ip }}|g" frontend/main.js
+          echo "---- main.js ----"; cat frontend/main.js || true
 
-          echo "--- Modified main.js ---"
-          cat frontend/main.js
-
-      - name: Build and Push Frontend Image
-        run: |
-          docker build -t ${{ secrets.AZURE_CONTAINER_REGISTRY }}/frontend:latest ./frontend/
-          docker push ${{ secrets.AZURE_CONTAINER_REGISTRY }}/frontend:latest
+      - name: Set KUBECONFIG
+        run: echo "KUBECONFIG=$RUNNER_TEMP/kubeconfig" >> $GITHUB_ENV
 
       - name: Get AKS context
-        uses: azure/aks-set-context@v3
-        with:
-          resource-group: ${{ inputs.aks_resource_group }}
-          cluster-name: ${{ inputs.aks_cluster_name }}
+        run: |
+          az aks get-credentials -g "${{ inputs.aks_resource_group }}" -n "${{ inputs.aks_cluster_name }}" --overwrite-existing --file "$KUBECONFIG"
+          kubectl --kubeconfig "$KUBECONFIG" cluster-info
 
-      - name: Deploy Frontend to AKS
+      - name: Deploy frontend
         run: |
           cd k8s/
           kubectl apply -f frontend.yaml
-    
-      - name: Logout from Azure
-        if: always()
-        run: az logout

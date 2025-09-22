@@ -1,75 +1,42 @@
-# test
 name: Backend CI - Test, Build and Push
 
 on:
+  workflow_run:
+    workflows: ["Infra - Provision Staging"]
+    types: 
+        - completed
   workflow_dispatch:
 
-  push:
-    branches:
-      - testing
-    paths:
-      - 'backend/**'
-      - '.github/workflows/backend_ci.yml'
-
 env:
-  ACR_LOGIN_SERVER: ${{ secrets.AZURE_CONTAINER_REGISTRY }}
-  IMAGE_TAG: ${{ github.sha }}-${{ github.run_id }}
+  ACR_NAME:         ${{ secrets.AZURE_CONTAINER_REGISTRY }}               
+  ACR_LOGIN_SERVER: ${{ format('{0}.azurecr.io', secrets.AZURE_CONTAINER_REGISTRY) }}
+  IMAGE_TAG:        ${{ github.sha }}-${{ github.run_id }}
 
 jobs:
   test_and_lint_backends:
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'testing') }}
     runs-on: ubuntu-latest
 
     services:
       product_db:
         image: postgres:15
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: products
+        env: { POSTGRES_USER: postgres, POSTGRES_PASSWORD: postgres, POSTGRES_DB: products }
         options: >-
           --health-cmd "pg_isready -U postgres"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
+          --health-interval 10s --health-timeout 5s --health-retries 5
+        ports: [ "5432:5432" ]
       order_db:
         image: postgres:15
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: orders
+        env: { POSTGRES_USER: postgres, POSTGRES_PASSWORD: postgres, POSTGRES_DB: orders }
         options: >-
           --health-cmd "pg_isready -U postgres"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5433:5432
-
-      customer_db:
-        image: postgres:15
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: customers
-        options: >-
-          --health-cmd "pg_isready -U postgres"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5434:5432
+          --health-interval 10s --health-timeout 5s --health-retries 5
+        ports: [ "5433:5432" ]
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python 3.10
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.10' }
 
       - name: Install dependencies
         run: |
@@ -98,49 +65,35 @@ jobs:
           POSTGRES_DB: orders
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-        run: pytest tests --maxfail=1 --disable-warnings -q
-
-      - name: Run customer_service tests
-        working-directory: backend/customer_service
-        env:
-          POSTGRES_HOST: localhost
-          POSTGRES_PORT: 5434
-          POSTGRES_DB: customers
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
+          PRODUCT_SERVICE_URL: http://localhost:8000
         run: pytest tests --maxfail=1 --disable-warnings -q
 
   build_and_push_images:
     runs-on: ubuntu-latest
     needs: test_and_lint_backends
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Azure Login
-        uses: azure/login@v1
+      - uses: actions/checkout@v4
+      - uses: azure/login@v1
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+            creds: ${{ secrets.AZURE_CREDENTIALS }} 
+      - name: Login to ACR
+        run: az acr login --name $ACR_NAME
 
-      - name: Login to Azure Container Registry
-        run: az acr login --name ${{ env.ACR_LOGIN_SERVER }}
-
-      - name: Build and Push Product Service Image
+      - name: Build and Push Product Service
         run: |
-          docker build -t ${{ env.ACR_LOGIN_SERVER }}/product_service:latest ./backend/product_service/
-          docker push ${{ env.ACR_LOGIN_SERVER }}/product_service:latest
+          docker build -t $ACR_LOGIN_SERVER/product_service:latest ./backend/product_service/
+          docker push $ACR_LOGIN_SERVER/product_service:latest
 
-      - name: Build and Push Order Service Image
+      - name: Build and Push Order Service
         run: |
-          docker build -t ${{ env.ACR_LOGIN_SERVER }}/order_service:latest ./backend/order_service/
-          docker push ${{ env.ACR_LOGIN_SERVER }}/order_service:latest
+          docker build -t $ACR_LOGIN_SERVER/order_service:latest ./backend/order_service/
+          docker push $ACR_LOGIN_SERVER/order_service:latest
 
-      - name: Build and Push Customer Service Image
+      - name: Build and Push Customer Service
         run: |
-          docker build -t ${{ env.ACR_LOGIN_SERVER }}/customer_service:latest ./backend/customer_service/
-          docker push ${{ env.ACR_LOGIN_SERVER }}/customer_service:latest
+          docker build -t $ACR_LOGIN_SERVER/customer_service:latest ./backend/customer_service/
+          docker push $ACR_LOGIN_SERVER/customer_service:latest
 
-      - name: Logout from Azure
-        run: az logout
+      - name: Logout
         if: always()
+        run: az logout

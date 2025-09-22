@@ -5,40 +5,45 @@ variable "location" {
 }
 
 variable "staging_rg_name" {
-  description = "Resource Group for staging environment"
+  description = "Resource Group for staging"
   type        = string
-  default     = "ecom-staging-rg"
 }
 
 variable "staging_aks_name" {
-  description = "Staging AKS cluster name"
+  description = "AKS cluster name"
   type        = string
-  default     = "ecom-staging-aks"
 }
 
 variable "dns_prefix" {
-  description = "DNS prefix for AKS cluster"
+  description = "DNS prefix for AKS"
   type        = string
-  default     = "ecom-staging"
+  default     = "staging-aks"
 }
 
 variable "kubernetes_version" {
-  description = "AKS version"
+  description = "AKS version (optional)"
+  type        = string
+  default     = null
 }
 
 variable "node_count" {
-  description = "Default node pool size"
+  description = "Node count"
   type        = number
   default     = 1
 }
 
 variable "node_vm_size" {
-  description = "VM size for node pool"
+  description = "VM size"
   type        = string
   default     = "Standard_D2s_v3"
 }
 
 variable "acr_name" {
-  description = "Azure Container Registry name"
+  description = "ACR name"
+  type        = string
+}
+
+variable "storage_account_name" {
+  description = "Storage Account name"
   type        = string
 }

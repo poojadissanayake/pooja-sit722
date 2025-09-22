@@ -27,32 +27,27 @@ on:
 jobs:
   deploy_backend:
     runs-on: ubuntu-latest
-    environment: Staging
     outputs:
       PRODUCT_IP: ${{ steps.capture.outputs.product_ip }}
       ORDER_IP: ${{ steps.capture.outputs.order_ip }}
       CUSTOMER_IP: ${{ steps.capture.outputs.customer_ip }}
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Azure Login
-        uses: azure/login@v1
+      - uses: actions/checkout@v4
+      - uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Get AKS context
-        run: |
-          if [ -n "${{ inputs.kubeconfig_path }}" ]; then
-            az aks get-credentials -g "${{ inputs.aks_resource_group }}" -n "${{ inputs.aks_cluster_name }}" --overwrite-existing --file "${{ inputs.kubeconfig_path }}"
-            export KUBECONFIG="${{ inputs.kubeconfig_path }}"
-          else
-            az aks get-credentials -g "${{ inputs.aks_resource_group }}" -n "${{ inputs.aks_cluster_name }}" --overwrite-existing
-          fi
-          kubectl cluster-info
+      - name: Use provided kubeconfig (optional)
+        if: ${{ inputs.kubeconfig_path != '' }}
+        run: echo "KUBECONFIG=${{ inputs.kubeconfig_path }}" >> $GITHUB_ENV
 
-      - name: Deploy Backend Infrastructure (ConfigMaps, Secrets, Databases)
+      - name: Get AKS credentials (if kubeconfig not supplied)
+        if: ${{ inputs.kubeconfig_path == '' }}
+        run: |
+          echo "KUBECONFIG=$RUNNER_TEMP/kubeconfig" >> $GITHUB_ENV
+          az aks get-credentials -g "${{ inputs.aks_resource_group }}" -n "${{ inputs.aks_cluster_name }}" --overwrite-existing --file "$KUBECONFIG"
+
+      - name: Deploy backend infra (ConfigMaps, Secrets, DBs)
         run: |
           cd k8s/
           kubectl apply -f configmaps.yaml
@@ -61,21 +56,24 @@ jobs:
           kubectl apply -f order-db.yaml
           kubectl apply -f customer-db.yaml
 
-      - name: Deploy Backend Microservices (Product, Order, Customer)
+      - name: Deploy backend services
         run: |
           cd k8s/
           kubectl apply -f product-service.yaml
           kubectl apply -f order-service.yaml
           kubectl apply -f customer-service.yaml
 
-      - name: Wait for Backend LoadBalancer IPs
+      - name: Wait for LoadBalancer IPs
         id: capture
-        shell: bash
         run: |
+          set -e
+          SVC1=product-service-w10t2
+          SVC2=order-service-w10t2
+          SVC3=customer-service-w10t2
           for i in $(seq 1 60); do
-            P=$(kubectl get service product-service-w08e1   -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-            O=$(kubectl get service order-service-w08e1     -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-            C=$(kubectl get service customer-service-w08e1 -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+            P=$(kubectl get svc $SVC1 -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+            O=$(kubectl get svc $SVC2 -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+            C=$(kubectl get svc $SVC3 -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
             if [[ -n "$P" && -n "$O" && -n "$C" ]]; then
               echo "product_ip=$P"  >> $GITHUB_OUTPUT
               echo "order_ip=$O"    >> $GITHUB_OUTPUT
@@ -84,4 +82,4 @@ jobs:
             fi
             sleep 5
           done
-          echo "Timeout waiting for LoadBalancer IPs"; exit 1
+          echo "Timed out waiting for LoadBalancer IPs"; exit

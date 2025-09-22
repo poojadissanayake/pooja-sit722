@@ -1,36 +1,30 @@
-#
-# Storage Account + Blob container the Product Service will use
-#
 resource "azurerm_storage_account" "staging" {
-  name                     = "${var.staging_aks_name}stgsa"
-  resource_group_name      = azurerm_resource_group.staging.name
-  location                 = azurerm_resource_group.staging.location
-  account_tier             = "Standard"
-  account_replication_type = "LRS"
+  name                            = var.storage_account_name
+  resource_group_name             = azurerm_resource_group.staging.name
+  location                        = azurerm_resource_group.staging.location
+  account_tier                    = "Standard"
+  account_replication_type        = "LRS"
+  allow_nested_items_to_be_public = false
 }
 
-# Container name must match app expectation: "product-images"
 resource "azurerm_storage_container" "product_images" {
-  name                  = "product-images"
+  name                  = "product-images" # matches your app code
   storage_account_name  = azurerm_storage_account.staging.name
   container_access_type = "private"
 }
 
-#
-# Outputs for wiring into K8s secret (product service will read these env vars)
-#
 output "storage_account_name" {
   value       = azurerm_storage_account.staging.name
-  description = "Storage Account for staging environment"
+  description = "Storage Account for staging"
 }
 
 output "storage_account_key" {
   value       = azurerm_storage_account.staging.primary_access_key
-  description = "Primary access key for the Storage Account"
+  description = "Primary access key"
   sensitive   = true
 }
 
 output "product_images_container" {
   value       = azurerm_storage_container.product_images.name
-  description = "Blob container for product images (expected by app)"
+  description = "Blob container name"
 }

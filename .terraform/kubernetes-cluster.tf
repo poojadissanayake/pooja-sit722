@@ -11,9 +11,7 @@ resource "azurerm_kubernetes_cluster" "staging" {
     vm_size    = var.node_vm_size
   }
 
-  identity {
-    type = "SystemAssigned"
-  }
+  identity { type = "SystemAssigned" }
 }
 
 resource "azurerm_role_assignment" "staging_acr_pull" {
@@ -31,9 +29,4 @@ output "staging_rg_name" {
 output "staging_aks_name" {
   value       = azurerm_kubernetes_cluster.staging.name
   description = "Staging AKS cluster name"
-}
-
-output "acr_name" {
-  value       = azurerm_container_registry.acr.name
-  description = "Azure Container Registry name"
 }

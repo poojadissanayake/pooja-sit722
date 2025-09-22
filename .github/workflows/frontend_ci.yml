@@ -6,37 +6,27 @@ on:
     types:
       - completed
   workflow_dispatch:
-    # Automatically on pushes to testing branch
+
 env:
-  # ACR Login Server (myregistry.azurecr.io)
-  ACR_LOGIN_SERVER: ${{ secrets.AZURE_CONTAINER_REGISTRY }}
+  ACR_NAME: ${{ secrets.AZURE_CONTAINER_REGISTRY }}
+  ACR_LOGIN_SERVER: ${{ format('{0}.azurecr.io', secrets.AZURE_CONTAINER_REGISTRY) }}
   IMAGE_TAG: ${{ github.sha }}-${{ github.run_id }}
 
 jobs:
   build_and_push_frontend:
-    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'testing' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'testing') }}
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      # Azure login using a Service Principal secret
-      - name: Azure Login
-        uses: azure/login@v1
+      - uses: actions/checkout@v4
+      - uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      # Login to Azure Container Registry (ACR)
-      - name: Login to Azure Container Registry
-        run: az acr login --name ${{ env.ACR_LOGIN_SERVER }}
-
-      # Build and Push Docker image for Frontend
-      - name: Build and Push Frontend Image
+      - name: Login to ACR
+        run: az acr login --name $ACR_NAME
+      - name: Build and Push Frontend
         run: |
-          docker build -t ${{ env.ACR_LOGIN_SERVER }}/frontend:${{ env.IMAGE_TAG }} ./frontend/
-          docker push ${{ env.ACR_LOGIN_SERVER }}/frontend:${{ env.IMAGE_TAG }}
-
-      - name: Logout from Azure
-        run: az logout
+          docker build -t $ACR_LOGIN_SERVER/frontend:${{ env.IMAGE_TAG }} ./frontend/
+          docker push $ACR_LOGIN_SERVER/frontend:${{ env.IMAGE_TAG }}
+      - name: Logout
         if: always()
+        run: az logout

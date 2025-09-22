@@ -1,0 +1,31 @@
+name: Infra - Provision Staging
+
+on:
+  push:
+    branches: [ testing ]
+    paths:
+      - '.github/workflows/staging_infra.yml'
+      - '.terraform/**'
+  workflow_dispatch:
+
+jobs:
+  terraform_apply:
+    runs-on: ubuntu-latest
+    env:
+      TF_VAR_acr_name:                      ${{ secrets.AZURE_CONTAINER_REGISTRY }}
+      TF_VAR_staging_rg_name:               ${{ vars.AKS_RESOURCE_GROUP }}
+      TF_VAR_staging_aks_name:              ${{ vars.AKS_CLUSTER_NAME }}
+      TF_VAR_storage_account_name: ${{ secrets.STORAGE_ACCOUNT_NAME }}
+      TF_VAR_location:                      ${{ vars.LOCATION }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/login@v1
+        with:
+            creds: ${{ secrets.AZURE_CREDENTIALS }}
+      - uses: hashicorp/setup-terraform@v3
+      - name: Terraform Init
+        working-directory: .terraform
+        run: terraform init
+      - name: Terraform Apply (staging infra)
+        working-directory: .terraform
+        run: terraform apply -auto-approve

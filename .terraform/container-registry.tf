@@ -1,6 +1,3 @@
-#
-# Creates a container registry on Azure
-#
 resource "azurerm_container_registry" "acr" {
   name                = var.acr_name
   resource_group_name = azurerm_resource_group.staging.name
@@ -8,15 +5,13 @@ resource "azurerm_container_registry" "acr" {
   sku                 = "Basic"
   admin_enabled       = true
 }
-output "registry_hostname" {
-  value = azurerm_container_registry.acr.login_server
+
+output "acr_name" {
+  value       = azurerm_container_registry.acr.name
+  description = "ACR name"
 }
 
-output "registry_un" {
-  value = azurerm_container_registry.acr.admin_username
-}
-
-output "registry_pw" {
-  value     = azurerm_container_registry.acr.admin_password
-  sensitive = true
+output "acr_login_server" {
+  value       = azurerm_container_registry.acr.login_server
+  description = "ACR login server (e.g., name.azurecr.io)"
 }
