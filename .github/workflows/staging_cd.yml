@@ -47,7 +47,7 @@ jobs:
 
       - name: Deploy Backend (reusable)
         id: backend
-        uses: ${{ github.repository }}/.github/workflows/backend_cd.yml@main
+        uses: poojadissanayake/pooja-sit722/.github/workflows/backend_cd.yml@testing
         with:
           aks_cluster_name: ${{ vars.AKS_CLUSTER_NAME }}
           aks_resource_group: ${{ vars.AKS_RESOURCE_GROUP }}
@@ -59,7 +59,7 @@ jobs:
           curl --fail "http://${{ steps.backend.outputs.CUSTOMER_IP }}:8002/health"
 
       - name: Deploy Frontend (reusable)
-        uses: ${{ github.repository }}/.github/workflows/frontend_cd.yml@main
+        uses: poojadissanayake/pooja-sit722/.github/workflows/frontend_cd.yml@testing
         with:
           product_api_ip: "http://${{ steps.backend.outputs.PRODUCT_IP }}:8000"
           order_api_ip: "http://${{ steps.backend.outputs.ORDER_IP }}:8001"
