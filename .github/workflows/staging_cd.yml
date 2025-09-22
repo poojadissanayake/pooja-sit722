@@ -3,8 +3,8 @@ name: CD - Staging (Deploy & Test)
 on:
   workflow_run:
     workflows: ["Frontend CI - Build & Push Image"]
-    types: 
-     - completed
+    types:
+      - completed
   workflow_dispatch:
 
 jobs:
@@ -15,8 +15,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: azure/login@v1
-        with: 
-            creds: ${{ secrets.AZURE_CREDENTIALS }}
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Set KUBECONFIG
         run: echo "KUBECONFIG=$RUNNER_TEMP/kubeconfig" >> $GITHUB_ENV
@@ -48,7 +48,7 @@ jobs:
         id: backend
         uses: ./.github/workflows/backend_cd.yml
         with:
-          aks_cluster_name:   ${{ vars.AKS_CLUSTER_NAME }}
+          aks_cluster_name: ${{ vars.AKS_CLUSTER_NAME }}
           aks_resource_group: ${{ vars.AKS_RESOURCE_GROUP }}
 
       - name: Quick acceptance checks
@@ -60,8 +60,8 @@ jobs:
       - name: Deploy Frontend (reusable)
         uses: ./.github/workflows/frontend_cd.yml
         with:
-          product_api_ip:    "http://${{ steps.backend.outputs.PRODUCT_IP }}:8000"
-          order_api_ip:      "http://${{ steps.backend.outputs.ORDER_IP }}:8001"
-          customer_api_ip:   "http://${{ steps.backend.outputs.CUSTOMER_IP }}:8002"
-          aks_cluster_name:  ${{ vars.AKS_CLUSTER_NAME }}
-          aks_resource_group:${{ vars.AKS_RESOURCE_GROUP }}
+          product_api_ip: "http://${{ steps.backend.outputs.PRODUCT_IP }}:8000"
+          order_api_ip: "http://${{ steps.backend.outputs.ORDER_IP }}:8001"
+          customer_api_ip: "http://${{ steps.backend.outputs.CUSTOMER_IP }}:8002"
+          aks_cluster_name: ${{ vars.AKS_CLUSTER_NAME }}
+          aks_resource_group: ${{ vars.AKS_RESOURCE_GROUP }}
