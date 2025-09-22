@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: order-service
-          image: order_service:latest
+          image: poojadissanayake.azurecr.io/order_service:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8001

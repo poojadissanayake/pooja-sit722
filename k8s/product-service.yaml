@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: product-service
-          image: product_service:latest
+          image: poojadissanayake.azurecr.io/product_service:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8000

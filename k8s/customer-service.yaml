@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: customer-service
-          image: customer_service:latest
+          image: poojadissanayake.azurecr.io/customer_service:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8002
