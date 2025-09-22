@@ -6,10 +6,6 @@ on:
     types:
       - completed
   workflow_dispatch:
-
-env:
-  KUBECONFIG: ${{ runner.temp }}/kubeconfig
-
 jobs:
   # Job 1: Provision full staging infra + deploy backends and basic checks
   provision_and_deploy:
@@ -61,6 +57,8 @@ jobs:
           echo "sa_key=$(terraform output -raw storage_account_key)"  >> $GITHUB_OUTPUT
           echo "img_container=$(terraform output -raw product_images_container)" >> $GITHUB_OUTPUT
 
+      - name: Set KUBECONFIG path
+        run: echo "KUBECONFIG=$RUNNER_TEMP/kubeconfig" >> $GITHUB_ENV
       - name: Get AKS credentials (staging)
         run: |
           az aks get-credentials -g "${{ steps.tf_out.outputs.rg }}" -n "${{ steps.tf_out.outputs.aks }}" --overwrite-existing --file "$KUBECONFIG"
