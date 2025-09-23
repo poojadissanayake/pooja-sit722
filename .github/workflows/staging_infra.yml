@@ -6,7 +6,7 @@ on:
     branches:
       - testing
     paths:
-      - "terraform/**"
+      - ".terraform/**"
       - ".github/workflows/staging_infra.yml"
 
 jobs:
