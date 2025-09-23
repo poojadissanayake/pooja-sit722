@@ -33,6 +33,9 @@ jobs:
       CUSTOMER_IP: ${{ steps.capture.outputs.customer_ip }}
     steps:
       - uses: actions/checkout@v4
+      - name: Debug AZURE_CREDENTIALS
+        run: |
+            echo "${{ secrets.AZURE_CREDENTIALS }}" | jq .
       - uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
