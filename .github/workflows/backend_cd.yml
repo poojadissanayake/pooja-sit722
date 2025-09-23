@@ -53,6 +53,7 @@ jobs:
         run: |
           echo "KUBECONFIG=$RUNNER_TEMP/kubeconfig" >> $GITHUB_ENV
           az aks get-credentials -g "${{ inputs.aks_resource_group }}" -n "${{ inputs.aks_cluster_name }}" --overwrite-existing --file "$KUBECONFIG"
+          kubectl --kubeconfig "$KUBECONFIG" cluster-info
 
       - name: Deploy backend infra (ConfigMaps, Secrets, DBs)
         run: |
