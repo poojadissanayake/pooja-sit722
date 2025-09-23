@@ -47,7 +47,7 @@ jobs:
 
   deploy_backend:
     needs: deploy_staging
-    uses: poojadissanayake/pooja-sit722/.github/workflows/backend_cd.yml@testing
+    uses: poojadissanayake/pooja-sit722/.github/workflows/backend_cd.yml@main
     with:
       aks_cluster_name: ${{ vars.AKS_CLUSTER_NAME }}
       aks_resource_group: ${{ vars.AKS_RESOURCE_GROUP }}
@@ -69,7 +69,7 @@ jobs:
     # deploy frontend via reusable workflow, wiring the captured backend IPs
   deploy_frontend:
     needs: acceptance_tests
-    uses: poojadissanayake/pooja-sit722/.github/workflows/frontend_cd.yml@testing
+    uses: poojadissanayake/pooja-sit722/.github/workflows/frontend_cd.yml@main
     with:
       product_api_ip: "http://${{ needs.deploy_backend.outputs.PRODUCT_IP }}:8000"
       order_api_ip: "http://${{ needs.deploy_backend.outputs.ORDER_IP }}:8001"
