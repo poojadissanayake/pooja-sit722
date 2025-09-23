@@ -29,11 +29,11 @@ jobs:
         uses: hashicorp/setup-terraform@v3
 
       - name: Terraform Init
-        working-directory: terraform
+        working-directory: .terraform
         run: terraform init
 
       - name: Terraform Apply
-        working-directory: terraform
+        working-directory: .terraform
         env:
           TF_VAR_staging_rg_name: ${{ vars.AKS_RESOURCE_GROUP }}
           TF_VAR_staging_aks_name: ${{ vars.AKS_CLUSTER_NAME }}
@@ -42,7 +42,7 @@ jobs:
 
       - name: Capture Terraform outputs
         id: tf_out
-        working-directory: terraform
+        working-directory: .terraform
         run: |
           echo "STORAGE_ACCOUNT_NAME=$(terraform output -raw storage_account_name)" >> $GITHUB_OUTPUT
           echo "STORAGE_ACCOUNT_KEY=$(terraform output -raw storage_account_key)" >> $GITHUB_OUTPUT
