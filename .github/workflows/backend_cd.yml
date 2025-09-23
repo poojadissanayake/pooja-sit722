@@ -10,23 +10,23 @@ on:
         required: true
         type: string
     outputs:
-      PRODUCT_API_IP:
+      PRODUCT_IP:
         description: Product Service LB IP
-        value: ${{ jobs.deploy_backend.outputs.PRODUCT_API_IP }}
-      ORDER_API_IP:
+        value: ${{ jobs.deploy_backend.outputs.PRODUCT_IP }}
+      ORDER_IP:
         description: Order Service LB IP
-        value: ${{ jobs.deploy_backend.outputs.ORDER_API_IP }}
-      CUSTOMER_API_IP:
+        value: ${{ jobs.deploy_backend.outputs.ORDER_IP }}
+      CUSTOMER_IP:
         description: Customer Service LB IP
-        value: ${{ jobs.deploy_backend.outputs.CUSTOMER_API_IP }}
+        value: ${{ jobs.deploy_backend.outputs.CUSTOMER_IP }}
 
 jobs:
   deploy_backend:
     runs-on: ubuntu-latest
     outputs:
-      PRODUCT_API_IP: ${{ steps.get_product_ip.outputs.external_ip }}
-      ORDER_API_IP: ${{ steps.get_order_ip.outputs.external_ip }}
-      CUSTOMER_API_IP: ${{ steps.get_customer_ip.outputs.external_ip }}
+      PRODUCT_IP: ${{ steps.get_product_ip.outputs.external_ip }}
+      ORDER_IP: ${{ steps.get_order_ip.outputs.external_ip }}
+      CUSTOMER_IP: ${{ steps.get_customer_ip.outputs.external_ip }}
 
     steps:
       - name: Checkout repository
