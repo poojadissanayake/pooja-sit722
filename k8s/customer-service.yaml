@@ -31,12 +31,12 @@ spec:
             - name: POSTGRES_USER
               valueFrom:
                 secretKeyRef:
-                  name: ecommerce-secret-core-w10t2
+                  name: ecommerce-secret-w10t2
                   key: POSTGRES_USER
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: ecommerce-secret-core-w10t2
+                  name: ecommerce-secret-w10t2
                   key: POSTGRES_PASSWORD
 ---
 apiVersion: v1
