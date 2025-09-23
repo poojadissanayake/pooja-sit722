@@ -36,20 +36,19 @@ jobs:
       PRODUCT_IP: ${{ steps.capture.outputs.product_ip }}
       ORDER_IP: ${{ steps.capture.outputs.order_ip }}
       CUSTOMER_IP: ${{ steps.capture.outputs.customer_ip }}
+
     steps:
       - uses: actions/checkout@v4
-      - name: Debug AZURE_CREDENTIALS
-        run: |
-          echo "${{ secrets.AZURE_CREDENTIALS }}" | jq .
+
       - uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Use provided kubeconfig (optional)
+      - name: Use provided kubeconfig
         if: ${{ inputs.kubeconfig_path != '' }}
         run: echo "KUBECONFIG=${{ inputs.kubeconfig_path }}" >> $GITHUB_ENV
 
-      - name: Get AKS credentials (if kubeconfig not supplied)
+      - name: Get AKS credentials
         if: ${{ inputs.kubeconfig_path == '' }}
         run: |
           echo "KUBECONFIG=$RUNNER_TEMP/kubeconfig" >> $GITHUB_ENV
