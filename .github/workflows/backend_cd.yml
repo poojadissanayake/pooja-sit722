@@ -37,7 +37,7 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Get AKS credentials (writes to ~/.kube/config)
+      - name: Get AKS credentials
         run: |
           az aks get-credentials \
             --resource-group "${{ inputs.aks_resource_group }}" \
@@ -53,6 +53,36 @@ jobs:
           kubectl apply -f product-db.yaml
           kubectl apply -f order-db.yaml
           kubectl apply -f customer-db.yaml
+
+      - name: Add Storage keys to ecommerce-secret-w10t2
+        shell: bash
+        run: |
+          set -e
+          NS=default
+          SA_NAME='${{ secrets.STORAGE_ACCOUNT_NAME }}'
+          if [ -z "$SA_NAME" ]; then
+              echo "STORAGE_ACCOUNT_NAME secret is not set." >&2
+              exit 1
+          fi
+
+          # Get a storage key from the RG that hosts your staging resources
+          SA_KEY=$(az storage account keys list \
+              -g "${{ inputs.aks_resource_group }}" \
+              -n "$SA_NAME" \
+              --query "[0].value" -o tsv)
+
+          if [ -z "$SA_KEY" ]; then
+              echo "Failed to retrieve key for storage account '$SA_NAME'." >&2
+              exit 1
+          fi
+
+          # Ensure the core secret exists (created by secrets.yaml), then merge in storage keys
+          kubectl -n "$NS" patch secret ecommerce-secret-w10t2 \
+              --type merge \
+              -p "{\"stringData\":{
+                  \"AZURE_STORAGE_ACCOUNT_NAME\":\"$SA_NAME\",
+                  \"AZURE_STORAGE_ACCOUNT_KEY\":\"$SA_KEY\"
+                  }}"
 
       - name: Deploy Backend Microservices (Product, Order, Customer)
         run: |
