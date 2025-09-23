@@ -29,7 +29,7 @@ jobs:
           curl --fail "http://${{ needs.deploy_backend.outputs.CUSTOMER_IP }}:8002/health"
 
   deploy_frontend:
-    needs: acceptance_tests
+    needs: [acceptance_tests, deploy_backend]
     uses: ./.github/workflows/frontend_cd.yml
     with:
       product_api_url: http://${{ needs.deploy_backend.outputs.PRODUCT_IP }}:8000

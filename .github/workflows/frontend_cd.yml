@@ -38,8 +38,11 @@ jobs:
           sed -i "s|_PRODUCT_API_URL_|${{ inputs.product_api_url }}|g" frontend/main.js
           sed -i "s|_ORDER_API_URL_|${{ inputs.order_api_url }}|g" frontend/main.js
           sed -i "s|_CUSTOMER_API_URL_|${{ inputs.customer_api_url }}|g" frontend/main.js
-          echo "Preview of updated frontend/main.js:"
-          head -n 40 frontend/main.js || true
+
+          # Display the modified file content for debugging
+          echo "--- Modified main.js content ---"
+          cat frontend/main.js
+          echo "---------------------------------"
 
       - name: Build & Push frontend image (latest)
         run: |
