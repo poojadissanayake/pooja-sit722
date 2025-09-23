@@ -12,6 +12,12 @@ on:
 jobs:
   terraform_apply:
     runs-on: ubuntu-latest
+    env:
+      TF_VAR_staging_rg_name: ${{ vars.AKS_RESOURCE_GROUP }}
+      TF_VAR_staging_aks_name: ${{ vars.AKS_CLUSTER_NAME }}
+      TF_VAR_acr_name: ${{ secrets.AZURE_CONTAINER_REGISTRY }}
+      TF_VAR_storage_account_name: ${{ secrets.STORAGE_ACCOUNT_NAME }}
+      TF_VAR_location: ${{ vars.LOCATION }}
 
     outputs:
       STORAGE_ACCOUNT_NAME: ${{ steps.tf_out.outputs.STORAGE_ACCOUNT_NAME }}
@@ -34,10 +40,6 @@ jobs:
 
       - name: Terraform Apply
         working-directory: .terraform
-        env:
-          TF_VAR_staging_rg_name: ${{ vars.AKS_RESOURCE_GROUP }}
-          TF_VAR_staging_aks_name: ${{ vars.AKS_CLUSTER_NAME }}
-          TF_VAR_acr_name: ${{ secrets.AZURE_CONTAINER_REGISTRY }}
         run: terraform apply -auto-approve
 
       - name: Capture Terraform outputs
