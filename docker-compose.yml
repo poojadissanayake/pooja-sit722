@@ -10,14 +10,14 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      - "5432:5432"
+      - "5432:5432" # host:container
     volumes:
       - product_db_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d products"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
 
   order_db:
     image: postgres:15-alpine
@@ -35,9 +35,8 @@ services:
       test: ["CMD-SHELL", "pg_isready -U postgres -d orders"]
       interval: 5s
       timeout: 5s
-      retries: 5
-  
-  # Customer service Database
+      retries: 10
+
   customer_db:
     image: postgres:15-alpine
     container_name: customer_db_container
@@ -47,28 +46,31 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      - "5432:5432"
+      - "5434:5432"
     volumes:
       - customer_db_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d customers"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
 
-  # Product Microservice (FastAPI)
   product_service:
     build:
       context: ./backend/product_service
       dockerfile: Dockerfile
+    image: local/product_service:dev
     container_name: product_api_container
-    image: product_service:latest
     restart: always
     ports:
       - "8000:8000"
     environment:
       POSTGRES_HOST: product_db
-      AZURE_STORAGE_ACCOUNT_NAME: <your_storage_account_name> 
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: products
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      AZURE_STORAGE_ACCOUNT_NAME: <your_storage_account_name>
       AZURE_STORAGE_ACCOUNT_KEY: <your_storage_account_key>
       AZURE_STORAGE_CONTAINER_NAME: <your_container_name>
       AZURE_SAS_TOKEN_EXPIRY_HOURS: 24
@@ -79,19 +81,22 @@ services:
       - ./backend/product_service/app:/app
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000
 
-  # Order Microservice (FastAPI)
   order_service:
     build:
       context: ./backend/order_service
-      dockerfile: Dockerfile
-    image: order_service:latest
+    image: local/order_service:dev
     container_name: order_api_container
     restart: always
     ports:
       - "8001:8000"
     environment:
       POSTGRES_HOST: order_db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: orders
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
       PRODUCT_SERVICE_URL: http://product_service:8000
+      CUSTOMER_SERVICE_URL: http://customer_service:8000
     depends_on:
       order_db:
         condition: service_healthy
@@ -100,37 +105,39 @@ services:
     volumes:
       - ./backend/order_service/app:/app
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000
-  
-  # Customer Microservice (FastAPI)
+
   customer_service:
     build:
       context: ./backend/customer_service
-      dockerfile: Dockerfile
-    image: customer_service:latest
+    image: local/customer_service:dev
     container_name: customer_api_container
     restart: always
     ports:
-      - "8003:8000"
+      - "8002:8000"
     environment:
       POSTGRES_HOST: customer_db
-      CUSTOMER_SERVICE_URL: http://customer_service:8000
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: customers
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
     depends_on:
       customer_db:
-        condition: service_healthy  
+        condition: service_healthy
     volumes:
       - ./backend/customer_service/app:/app
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000
 
-  # Frontend Service
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    image: frontend:latest
-    container_name: ecom_frontend
+    image: local/frontend:dev
+    container_name: ecommerce_frontend
     restart: always
     ports:
-      - "3000:80"
+      - "3000:80" # browse http://localhost:3000
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro
     depends_on:
       product_service:
         condition: service_started
@@ -138,10 +145,8 @@ services:
         condition: service_started
       customer_service:
         condition: service_started
-    volumes:
-      - ./frontend:/usr/share/nginx/html
 
-# Named volumes for data persistence for each database
+# Volumes
 volumes:
   product_db_data:
   order_db_data:

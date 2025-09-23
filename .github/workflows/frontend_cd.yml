@@ -3,19 +3,16 @@ name: CD - Deploy Frontend to AKS (Reusable)
 on:
   workflow_call:
     inputs:
-      product_api_ip:
+      product_api_url:
+        description: "Full Product API base URL (http://X.X.X.X:8000)"
         required: true
         type: string
-      order_api_ip:
+      order_api_url:
+        description: "Full Order API base URL (http://X.X.X.X:8001)"
         required: true
         type: string
-      customer_api_ip:
-        required: true
-        type: string
-      aks_cluster_name:
-        required: true
-        type: string
-      aks_resource_group:
+      customer_api_url:
+        description: "Full Customer API base URL (http://X.X.X.X:8002)"
         required: true
         type: string
 
@@ -24,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Azure Login
@@ -35,28 +32,25 @@ jobs:
       - name: Login to ACR
         run: az acr login --name ${{ secrets.AZURE_CONTAINER_REGISTRY }}
 
+      # Inject the three backend URLs into frontend/main.js placeholders
       - name: Inject backend URLs into frontend/main.js
         run: |
-          sed -i "s|_PRODUCT_API_URL_|${{ inputs.product_api_ip }}|g" frontend/main.js
-          sed -i "s|_ORDER_API_URL_|${{ inputs.order_api_ip }}|g" frontend/main.js
-          sed -i "s|_CUSTOMER_API_URL_|${{ inputs.customer_api_ip }}|g" frontend/main.js
-          echo "--- main.js (preview) ---"
-          head -n 50 frontend/main.js || true
+          sed -i "s|_PRODUCT_API_URL_|${{ inputs.product_api_url }}|g" frontend/main.js
+          sed -i "s|_ORDER_API_URL_|${{ inputs.order_api_url }}|g" frontend/main.js
+          sed -i "s|_CUSTOMER_API_URL_|${{ inputs.customer_api_url }}|g" frontend/main.js
+          echo "Preview of updated frontend/main.js:"
+          head -n 40 frontend/main.js || true
 
-      - name: Build & Push frontend image
+      - name: Build & Push frontend image (latest)
         run: |
-          docker build -t ${{ secrets.AZURE_CONTAINER_REGISTRY }}/frontend:latest ./frontend
-          docker push ${{ secrets.AZURE_CONTAINER_REGISTRY }}/frontend:latest
+          docker build -t ${{ secrets.AZURE_CONTAINER_REGISTRY }}.azurecr.io/frontend:latest ./frontend
+          docker push ${{ secrets.AZURE_CONTAINER_REGISTRY }}.azurecr.io/frontend:latest
 
-      - name: Get AKS credentials
-        run: |
-          az aks get-credentials \
-            --resource-group "${{ inputs.aks_resource_group }}" \
-            --name "${{ inputs.aks_cluster_name }}" \
-            --overwrite-existing
-          kubectl cluster-info
+      - name: Set AKS context
+        uses: azure/aks-set-context@v3
+        with:
+          resource-group: ${{ vars.AKS_RESOURCE_GROUP }}
+          cluster-name: ${{ vars.AKS_CLUSTER_NAME }}
 
-      - name: Deploy frontend manifests
-        run: |
-          cd k8s
-          kubectl apply -f frontend.yaml
+      - name: Deploy frontend manifest
+        run: kubectl apply -f k8s/frontend.yaml

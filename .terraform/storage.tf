@@ -8,7 +8,7 @@ resource "azurerm_storage_account" "staging" {
 }
 
 resource "azurerm_storage_container" "product_images" {
-  name                  = "product-images" # matches your app code
+  name                  = "product-images"
   storage_account_name  = azurerm_storage_account.staging.name
   container_access_type = "private"
 }

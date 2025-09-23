@@ -15,31 +15,30 @@ spec:
         app: order-service
     spec:
       containers:
-        - name: order-service
+        - name: order-service-container
           image: poojadissanayake.azurecr.io/order_service:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           ports:
-            - containerPort: 8001
+            - containerPort: 8000
           env:
             - name: POSTGRES_HOST
               value: order-db-service-w10t2
-            - name: POSTGRES_PORT
-              value: "5432"
             - name: POSTGRES_DB
               valueFrom:
                 configMapKeyRef:
                   name: ecommerce-config-w10t2
-                  key: ORDER_DB_NAME
+                  key: ORDERS_DB_NAME
             - name: POSTGRES_USER
               valueFrom:
                 secretKeyRef:
-                  name: ecommerce-secret-w10t2
+                  name: ecommerce-secret-core-w10t2
                   key: POSTGRES_USER
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: ecommerce-secret-w10t2
+                  name: ecommerce-secret-core-w10t2
                   key: POSTGRES_PASSWORD
+
             - name: PRODUCT_SERVICE_URL
               valueFrom:
                 configMapKeyRef:
@@ -55,8 +54,8 @@ metadata:
 spec:
   selector:
     app: order-service
-  type: LoadBalancer
   ports:
-    - name: http
+    - protocol: TCP
       port: 8001
-      targetPort: 8001
+      targetPort: 8000
+  type: LoadBalancer

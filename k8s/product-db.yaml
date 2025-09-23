@@ -24,16 +24,16 @@ spec:
               valueFrom:
                 configMapKeyRef:
                   name: ecommerce-config-w10t2
-                  key: PRODUCT_DB_NAME
+                  key: PRODUCTS_DB_NAME
             - name: POSTGRES_USER
               valueFrom:
                 secretKeyRef:
-                  name: ecommerce-secret-w10t2
+                  name: ecommerce-secret-core-w10t2
                   key: POSTGRES_USER
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: ecommerce-secret-w10t2
+                  name: ecommerce-secret-core-w10t2
                   key: POSTGRES_PASSWORD
 ---
 apiVersion: v1
