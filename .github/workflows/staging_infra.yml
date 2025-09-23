@@ -1,6 +1,7 @@
 name: Infra - Provision Staging
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - testing
