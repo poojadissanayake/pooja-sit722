@@ -41,13 +41,11 @@ jobs:
           sed -i "s|_CUSTOMER_API_URL_|${{ inputs.customer_api_ip }}|g" frontend/main.js
           echo "---- main.js ----"; cat frontend/main.js || true
 
-      - name: Set KUBECONFIG
-        run: echo "KUBECONFIG=$RUNNER_TEMP/kubeconfig" >> $GITHUB_ENV
-
-      - name: Get AKS context
-        run: |
-          az aks get-credentials -g "${{ inputs.aks_resource_group }}" -n "${{ inputs.aks_cluster_name }}" --overwrite-existing --file "$KUBECONFIG"
-          kubectl --kubeconfig "$KUBECONFIG" cluster-info
+      - name: Set Kubernetes context (get AKS credentials)
+        uses: azure/aks-set-context@v3
+        with:
+          resource-group: ${{ inputs.aks_resource_group }}
+          cluster-name: ${{ inputs.aks_cluster_name }}
 
       - name: Deploy frontend
         run: |

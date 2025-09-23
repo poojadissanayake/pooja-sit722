@@ -38,22 +38,18 @@ jobs:
       CUSTOMER_IP: ${{ steps.capture.outputs.customer_ip }}
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - uses: azure/login@v1
+      - name: Log in to Azure
+        uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
+          enable-AzPSSession: true
 
-      - name: Use provided kubeconfig
-        if: ${{ inputs.kubeconfig_path != '' }}
-        run: echo "KUBECONFIG=${{ inputs.kubeconfig_path }}" >> $GITHUB_ENV
-
-      - name: Get AKS credentials
-        if: ${{ inputs.kubeconfig_path == '' }}
+      - name: Set Kubernetes context (get AKS credentials)
         run: |
-          echo "KUBECONFIG=$RUNNER_TEMP/kubeconfig" >> $GITHUB_ENV
-          az aks get-credentials -g "${{ inputs.aks_resource_group }}" -n "${{ inputs.aks_cluster_name }}" --overwrite-existing --file "$KUBECONFIG"
-          kubectl --kubeconfig "$KUBECONFIG" cluster-info
+          az aks get-credentials --resource-group ${{ github.event.inputs.aks_resource_group }} --name ${{ github.event.inputs.aks_cluster_name }} --overwrite-existing
 
       - name: Deploy backend infra (ConfigMaps, Secrets, DBs)
         run: |
