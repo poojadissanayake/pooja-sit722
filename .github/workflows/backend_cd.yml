@@ -97,12 +97,12 @@ jobs:
 
       - name: Capture Product Service IP for Workflow Output
         id: get_product_ip
-        run: echo "external_ip=${{ env.PRODUCT_IP }}" >> $GITHUB_OUTPUT
+        run: echo "external_ip=$PRODUCT_IP" >> $GITHUB_OUTPUT
 
       - name: Capture Order Service IP for Workflow Output
         id: get_order_ip
-        run: echo "external_ip=${{ env.ORDER_IP }}" >> $GITHUB_OUTPUT
+        run: echo "external_ip=$ORDER_IP" >> $GITHUB_OUTPUT
 
       - name: Capture Customer Service IP for Workflow Output
         id: get_customer_ip
-        run: echo "external_ip=${{ env.CUSTOMER_IP }}" >> $GITHUB_OUTPUT
+        run: echo "external_ip=$CUSTOMER_IP" >> $GITHUB_OUTPUT
