@@ -1,89 +1,108 @@
-name: CD - Deploy Backend to AKS (reusable)
+name: CD - Deploy Backend Services to AKS (Reusable)
 
 on:
   workflow_call:
     inputs:
       aks_cluster_name:
-        type: string
         required: true
+        type: string
       aks_resource_group:
+        required: true
         type: string
-        required: true
-      kubeconfig_path:
-        type: string
-        required: false
-        default: ""
-    secrets:
-      AZURE_CREDENTIALS:
-        required: true
-      AZURE_CONTAINER_REGISTRY:
-        required: true
     outputs:
-      PRODUCT_IP:
-        description: "Product LB IP"
-        value: ${{ jobs.deploy_backend.outputs.PRODUCT_IP }}
-      ORDER_IP:
-        description: "Order LB IP"
-        value: ${{ jobs.deploy_backend.outputs.ORDER_IP }}
-      CUSTOMER_IP:
-        description: "Customer LB IP"
-        value: ${{ jobs.deploy_backend.outputs.CUSTOMER_IP }}
+      PRODUCT_API_IP:
+        description: Product Service LB IP
+        value: ${{ jobs.deploy_backend.outputs.PRODUCT_API_IP }}
+      ORDER_API_IP:
+        description: Order Service LB IP
+        value: ${{ jobs.deploy_backend.outputs.ORDER_API_IP }}
+      CUSTOMER_API_IP:
+        description: Customer Service LB IP
+        value: ${{ jobs.deploy_backend.outputs.CUSTOMER_API_IP }}
 
 jobs:
   deploy_backend:
     runs-on: ubuntu-latest
     outputs:
-      PRODUCT_IP: ${{ steps.capture.outputs.product_ip }}
-      ORDER_IP: ${{ steps.capture.outputs.order_ip }}
-      CUSTOMER_IP: ${{ steps.capture.outputs.customer_ip }}
+      PRODUCT_API_IP: ${{ steps.get_product_ip.outputs.external_ip }}
+      ORDER_API_IP: ${{ steps.get_order_ip.outputs.external_ip }}
+      CUSTOMER_API_IP: ${{ steps.get_customer_ip.outputs.external_ip }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Log in to Azure
+      - name: Azure Login
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
-          enable-AzPSSession: true
 
-      - name: Set Kubernetes context (get AKS credentials)
+      - name: Get AKS credentials (writes to ~/.kube/config)
         run: |
-          az aks get-credentials --resource-group ${{ github.event.inputs.aks_resource_group }} --name ${{ github.event.inputs.aks_cluster_name }} --overwrite-existing
+          az aks get-credentials \
+            --resource-group "${{ inputs.aks_resource_group }}" \
+            --name "${{ inputs.aks_cluster_name }}" \
+            --overwrite-existing
+          kubectl cluster-info
 
-      - name: Deploy backend infra (ConfigMaps, Secrets, DBs)
+      - name: Deploy Backend Infrastructure (ConfigMaps, Secrets, Databases)
         run: |
-          cd k8s/
+          cd k8s
           kubectl apply -f configmaps.yaml
           kubectl apply -f secrets.yaml
           kubectl apply -f product-db.yaml
           kubectl apply -f order-db.yaml
           kubectl apply -f customer-db.yaml
 
-      - name: Deploy backend services
+      - name: Deploy Backend Microservices (Product, Order, Customer)
         run: |
-          cd k8s/
+          cd k8s
           kubectl apply -f product-service.yaml
           kubectl apply -f order-service.yaml
           kubectl apply -f customer-service.yaml
 
-      - name: Wait for LoadBalancer IPs
-        id: capture
+      - name: Wait for Backend LoadBalancer IPs
+        shell: bash
         run: |
-          set -e
-          SVC1=product-service-w10t2
-          SVC2=order-service-w10t2
-          SVC3=customer-service-w10t2
+          echo "Waiting for Product, Order, Customer LoadBalancer IPs to be assigned (up to 5 minutes)..."
+          PRODUCT_IP=""
+          ORDER_IP=""
+          CUSTOMER_IP=""
+
           for i in $(seq 1 60); do
-            P=$(kubectl get svc $SVC1 -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-            O=$(kubectl get svc $SVC2 -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-            C=$(kubectl get svc $SVC3 -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-            if [[ -n "$P" && -n "$O" && -n "$C" ]]; then
-              echo "product_ip=$P"  >> $GITHUB_OUTPUT
-              echo "order_ip=$O"    >> $GITHUB_OUTPUT
-              echo "customer_ip=$C" >> $GITHUB_OUTPUT
-              exit 0
+            echo "Attempt $i/60 to get IPs..."
+            PRODUCT_IP=$(kubectl get service product-service-w10t2   -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+            ORDER_IP=$(kubectl   get service order-service-w10t2     -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+            CUSTOMER_IP=$(kubectl get service customer-service-w10t2 -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+
+            if [[ -n "$PRODUCT_IP" && -n "$ORDER_IP" && -n "$CUSTOMER_IP" ]]; then
+              echo "All backend LoadBalancer IPs assigned!"
+              echo "Product Service IP:  $PRODUCT_IP"
+              echo "Order Service IP:    $ORDER_IP"
+              echo "Customer Service IP: $CUSTOMER_IP"
+              break
             fi
             sleep 5
           done
-          echo "Timed out waiting for LoadBalancer IPs"; exit 1
+
+          if [[ -z "$PRODUCT_IP" || -z "$ORDER_IP" || -z "$CUSTOMER_IP" ]]; then
+            echo "Error: One or more LoadBalancer IPs not assigned after timeout."
+            exit 1
+          fi
+
+          # Export for subsequent steps in this job
+          echo "PRODUCT_IP=$PRODUCT_IP"   >> $GITHUB_ENV
+          echo "ORDER_IP=$ORDER_IP"       >> $GITHUB_ENV
+          echo "CUSTOMER_IP=$CUSTOMER_IP" >> $GITHUB_ENV
+
+      - name: Capture Product Service IP for Workflow Output
+        id: get_product_ip
+        run: echo "external_ip=${{ env.PRODUCT_IP }}" >> $GITHUB_OUTPUT
+
+      - name: Capture Order Service IP for Workflow Output
+        id: get_order_ip
+        run: echo "external_ip=${{ env.ORDER_IP }}" >> $GITHUB_OUTPUT
+
+      - name: Capture Customer Service IP for Workflow Output
+        id: get_customer_ip
+        run: echo "external_ip=${{ env.CUSTOMER_IP }}" >> $GITHUB_OUTPUT

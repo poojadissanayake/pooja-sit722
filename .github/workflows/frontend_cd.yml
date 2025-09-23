@@ -1,4 +1,4 @@
-name: CD - Deploy Frontend to AKS (reusable)
+name: CD - Deploy Frontend to AKS (Reusable)
 
 on:
   workflow_call:
@@ -18,36 +18,45 @@ on:
       aks_resource_group:
         required: true
         type: string
-    secrets:
-      AZURE_CREDENTIALS:
-        required: true
-      AZURE_CONTAINER_REGISTRY:
-        required: true
 
 jobs:
   deploy_frontend:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
 
-      - uses: azure/login@v1
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Inject backend URLs into frontend
+      - name: Login to ACR
+        run: az acr login --name ${{ secrets.AZURE_CONTAINER_REGISTRY }}
+
+      - name: Inject backend URLs into frontend/main.js
         run: |
           sed -i "s|_PRODUCT_API_URL_|${{ inputs.product_api_ip }}|g" frontend/main.js
           sed -i "s|_ORDER_API_URL_|${{ inputs.order_api_ip }}|g" frontend/main.js
           sed -i "s|_CUSTOMER_API_URL_|${{ inputs.customer_api_ip }}|g" frontend/main.js
-          echo "---- main.js ----"; cat frontend/main.js || true
+          echo "--- main.js (preview) ---"
+          head -n 50 frontend/main.js || true
 
-      - name: Set Kubernetes context (get AKS credentials)
-        uses: azure/aks-set-context@v3
-        with:
-          resource-group: ${{ inputs.aks_resource_group }}
-          cluster-name: ${{ inputs.aks_cluster_name }}
-
-      - name: Deploy frontend
+      - name: Build & Push frontend image
         run: |
-          cd k8s/
+          docker build -t ${{ secrets.AZURE_CONTAINER_REGISTRY }}/frontend:latest ./frontend
+          docker push ${{ secrets.AZURE_CONTAINER_REGISTRY }}/frontend:latest
+
+      - name: Get AKS credentials
+        run: |
+          az aks get-credentials \
+            --resource-group "${{ inputs.aks_resource_group }}" \
+            --name "${{ inputs.aks_cluster_name }}" \
+            --overwrite-existing
+          kubectl cluster-info
+
+      - name: Deploy frontend manifests
+        run: |
+          cd k8s
           kubectl apply -f frontend.yaml
