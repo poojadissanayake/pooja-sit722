@@ -28,6 +28,17 @@ jobs:
       - name: ACR login
         run: az acr login --name ${{ secrets.PROD_AZURE_CONTAINER_REGISTRY }}
 
+      - name: Build & push backend images
+        run: |
+          docker build -t ${{ secrets.PROD_AZURE_CONTAINER_REGISTRY }}.azurecr.io/product_service:latest ./backend/product_service
+          docker push ${{ secrets.PROD_AZURE_CONTAINER_REGISTRY }}.azurecr.io/product_service:latest
+
+          docker build -t ${{ secrets.PROD_AZURE_CONTAINER_REGISTRY }}.azurecr.io/order_service:latest ./backend/order_service
+          docker push ${{ secrets.PROD_AZURE_CONTAINER_REGISTRY }}.azurecr.io/order_service:latest
+
+          docker build -t ${{ secrets.PROD_AZURE_CONTAINER_REGISTRY }}.azurecr.io/customer_service:latest ./backend/customer_service
+          docker push ${{ secrets.PROD_AZURE_CONTAINER_REGISTRY }}.azurecr.io/customer_service:latest
+
       - name: Get AKS credentials
         run: |
           az aks get-credentials \
