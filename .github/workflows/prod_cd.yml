@@ -40,11 +40,11 @@ jobs:
       - name: Apply backend infra manifests
         run: |
           cd k8s
-          kubectl apply -f configmaps.yaml
-          kubectl apply -f secrets.yaml
-          kubectl apply -f product-db.yaml
-          kubectl apply -f order-db.yaml
-          kubectl apply -f customer-db.yaml
+          kubectl apply -f k8s-prod/configmaps.yaml
+          kubectl apply -f k8s-prod/secrets.yaml
+          kubectl apply -f k8s-prod/product-db.yaml
+          kubectl apply -f k8s-prod/order-db.yaml
+          kubectl apply -f k8s-prod/customer-db.yaml
 
       # Inject Storage creds into ecommerce-secret-w10t2 for product-service
       - name: Ensure storage keys are in ecommerce-secret-w10t2
@@ -84,9 +84,9 @@ jobs:
       - name: Deploy backend services
         run: |
           cd k8s
-          kubectl apply -f product-service.yaml
-          kubectl apply -f order-service.yaml
-          kubectl apply -f customer-service.yaml
+          kubectl apply -f k8s-prod/product-service.yaml
+          kubectl apply -f k8s-prod/order-service.yaml
+          kubectl apply -f k8s-prod/customer-service.yaml
 
       - name: Wait for backend LoadBalancer IPs
         id: wait_ips
@@ -143,7 +143,7 @@ jobs:
           docker push    ${{ secrets.PROD_AZURE_CONTAINER_REGISTRY }}.azurecr.io/frontend:latest
 
       - name: Deploy frontend
-        run: kubectl apply -f k8s/frontend.yaml
+        run: kubectl apply -f k8s-prod/frontend.yaml
 
       - name: Done
         run: echo "Production deployment completed successfully!"

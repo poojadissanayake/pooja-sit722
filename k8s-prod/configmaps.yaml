@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ecommerce-config-w10t2
+data:
+  # Database names
+  PRODUCTS_DB_NAME: products
+  ORDERS_DB_NAME: orders
+  CUSTOMERS_DB_NAME: customers
+
+  # Internal service URLs (cluster DNS names)
+  PRODUCT_SERVICE_URL: http://product-service-w10t2:8000
+  ORDER_SERVICE_URL: http://order-service-w10t2:8001
+  CUSTOMER_SERVICE_URL: http://customer-service-w10t2:8002
+
+  # Product image storage
+  AZURE_STORAGE_CONTAINER_NAME: product-images
+  AZURE_SAS_TOKEN_EXPIRY_HOURS: "24"
