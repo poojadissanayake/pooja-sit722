@@ -1,0 +1,59 @@
+name: CD - Production (Deploy on PR to main)
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  deploy_backend:
+    name: Deploy backend (prod)
+    uses: ./.github/workflows/backend_cd.yml
+    with:
+      aks_cluster_name: ${{ vars.PROD_AKS_CLUSTER_NAME }}
+      aks_resource_group: ${{ vars.PROD_AKS_RESOURCE_GROUP }}
+    secrets: inherit
+
+  acceptance_tests:
+    name: Acceptance tests (prod)
+    runs-on: ubuntu-latest
+    needs: deploy_backend
+    env:
+      PRODUCT_IP: ${{ needs.deploy_backend.outputs.PRODUCT_IP }}
+      ORDER_IP: ${{ needs.deploy_backend.outputs.ORDER_IP }}
+      CUSTOMER_IP: ${{ needs.deploy_backend.outputs.CUSTOMER_IP }}
+    steps:
+      - name: Show resolved IPs
+        run: |
+          echo "Product IP:  $PRODUCT_IP"
+          echo "Order IP:    $ORDER_IP"
+          echo "Customer IP: $CUSTOMER_IP"
+
+      - name: Health checks
+        shell: bash
+        run: |
+          set -e
+          for i in $(seq 1 45); do
+            echo "Attempt $i/45..."
+            OK=1
+            curl -fsS "http://$PRODUCT_IP:8000/health"   || OK=0
+            curl -fsS "http://$ORDER_IP:8001/health"     || OK=0
+            curl -fsS "http://$CUSTOMER_IP:8002/health"  || OK=0
+            if [ "$OK" = "1" ]; then
+              echo "All services healthy"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "One or more services failed health checks"
+          exit 1
+
+  deploy_frontend:
+    name: Deploy frontend (prod)
+    needs: [acceptance_tests, deploy_backend]
+    uses: ./.github/workflows/frontend_cd.yml
+    with:
+      product_api_url: http://${{ needs.deploy_backend.outputs.PRODUCT_IP }}:8000
+      order_api_url: http://${{ needs.deploy_backend.outputs.ORDER_IP }}:8001
+      customer_api_url: http://${{ needs.deploy_backend.outputs.CUSTOMER_IP }}:8002
+    secrets: inherit
