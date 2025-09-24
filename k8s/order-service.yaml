@@ -44,6 +44,11 @@ spec:
                 configMapKeyRef:
                   name: ecommerce-config-w10t2
                   key: PRODUCT_SERVICE_URL
+            - name: CUSTOMER_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: ecommerce-config-w10t2
+                  key: CUSTOMER_SERVICE_URL
 ---
 apiVersion: v1
 kind: Service
