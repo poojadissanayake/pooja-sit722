@@ -39,7 +39,6 @@ jobs:
       # backend: config + secrets + DBs
       - name: Apply backend infra manifests
         run: |
-          cd k8s
           kubectl apply -f k8s-prod/configmaps.yaml
           kubectl apply -f k8s-prod/secrets.yaml
           kubectl apply -f k8s-prod/product-db.yaml
