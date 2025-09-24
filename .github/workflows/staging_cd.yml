@@ -21,12 +21,35 @@ jobs:
     steps:
       - name: Health checks
         run: |
-          echo "Product IP:  ${{ needs.deploy_backend.outputs.PRODUCT_IP }}"
-          echo "Order IP:    ${{ needs.deploy_backend.outputs.ORDER_IP }}"
-          echo "Customer IP: ${{ needs.deploy_backend.outputs.CUSTOMER_IP }}"
-          curl --fail "http://${{ needs.deploy_backend.outputs.PRODUCT_IP }}:8000/health"
-          curl --fail "http://${{ needs.deploy_backend.outputs.ORDER_IP }}:8001/health"
-          curl --fail "http://${{ needs.deploy_backend.outputs.CUSTOMER_IP }}:8002/health"
+          echo "Checking Product: ${{ needs.deploy_backend.outputs.PRODUCT_IP }}:8000"
+          for i in {1..30}; do
+          if curl -s --fail http://${{ needs.deploy_backend.outputs.PRODUCT_IP }}:8000/health; then
+              echo "Product service healthy"
+              break
+          fi
+          echo "Waiting for Product service... attempt $i"
+          sleep 10
+          done
+
+          echo "Checking Order: ${{ needs.deploy_backend.outputs.ORDER_IP }}:8001"
+          for i in {1..30}; do
+          if curl -s --fail http://${{ needs.deploy_backend.outputs.ORDER_IP }}:8001/health; then
+              echo "Order service healthy"
+              break
+          fi
+          echo "Waiting for Order service... attempt $i"
+          sleep 10
+          done
+
+          echo "Checking Customer: ${{ needs.deploy_backend.outputs.CUSTOMER_IP }}:8002"
+          for i in {1..30}; do
+          if curl -s --fail http://${{ needs.deploy_backend.outputs.CUSTOMER_IP }}:8002/health; then
+              echo "Customer service healthy"
+              break
+          fi
+          echo "Waiting for Customer service... attempt $i"
+          sleep 10
+          done
 
   deploy_frontend:
     needs: [acceptance_tests, deploy_backend]
